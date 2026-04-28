@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0A774DB16F5B4552EF516A70 /* GameData.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6B8D64A929764A2229C1D4 /* GameData.swift */; };
+		0AEC5AE82EF4FF3597E058EC /* OrientationLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1B0E08B12CD50B2B754B09 /* OrientationLock.swift */; };
 		20CF97A5E8B80B30E2336A35 /* DungeonScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67D12EF8C3CC2ADB080F4DFF /* DungeonScene.swift */; };
 		32E75FDC327F7B132DBBFE5A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03C2B141BFFDCFF0A741C3D /* ContentView.swift */; };
 		3B0AF800809805C47B2CCE28 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E98DA47D9E770402D062F57C /* Assets.xcassets */; };
@@ -31,6 +32,7 @@
 
 /* Begin PBXFileReference section */
 		061E0E46B77608F7622E0677 /* DungeonDelverIOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DungeonDelverIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1D1B0E08B12CD50B2B754B09 /* OrientationLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationLock.swift; sourceTree = "<group>"; };
 		3144B42C9E9BAEAC494760F8 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 		453046C78C8AF37D65482D57 /* DungeonDelverIOSTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DungeonDelverIOSTests.swift; sourceTree = "<group>"; };
 		4ABDAB727588B5450C69AAC3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -58,6 +60,7 @@
 				3144B42C9E9BAEAC494760F8 /* GameViewModel.swift */,
 				F456A48B289A51831149847C /* Info.plist */,
 				4ABDAB727588B5450C69AAC3 /* Models.swift */,
+				1D1B0E08B12CD50B2B754B09 /* OrientationLock.swift */,
 				C0FC3349378156A6C8AC8EC8 /* RunStorage.swift */,
 			);
 			path = DungeonDelverIOS;
@@ -190,6 +193,7 @@
 				0A774DB16F5B4552EF516A70 /* GameData.swift in Sources */,
 				AE87B167F0498B0857D10982 /* GameViewModel.swift in Sources */,
 				5848C93802786FA5C5FB2EA5 /* Models.swift in Sources */,
+				0AEC5AE82EF4FF3597E058EC /* OrientationLock.swift in Sources */,
 				55CBCFAA262CAE9982B38A3D /* RunStorage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

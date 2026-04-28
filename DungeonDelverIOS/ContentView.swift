@@ -7,21 +7,33 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let isPortraitViewport = proxy.size.height > proxy.size.width
+            let landscapeSize = isPortraitViewport
+                ? CGSize(width: proxy.size.height, height: proxy.size.width)
+                : proxy.size
+
             ZStack {
                 Color.black.ignoresSafeArea()
-                landscapeGame(in: proxy.size)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .padding(.leading, proxy.safeAreaInsets.leading)
-                    .padding(.trailing, proxy.safeAreaInsets.trailing)
-                    .padding(.top, proxy.safeAreaInsets.top)
-                    .padding(.bottom, proxy.safeAreaInsets.bottom)
 
-                if let overlay = game.overlay {
-                    overlayView(overlay)
+                if isPortraitViewport {
+                    gameSurface(in: landscapeSize, safeAreaInsets: EdgeInsets())
+                        .frame(width: landscapeSize.width, height: landscapeSize.height)
+                        .rotationEffect(.degrees(90))
+                        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                } else {
+                    gameSurface(
+                        in: landscapeSize,
+                        safeAreaInsets: EdgeInsets(
+                            top: 0,
+                            leading: proxy.safeAreaInsets.leading,
+                            bottom: 0,
+                            trailing: proxy.safeAreaInsets.trailing
+                        )
+                    )
                 }
             }
         }
+        .ignoresSafeArea()
         .font(.custom("Menlo", size: 12))
         .foregroundStyle(.white)
         .statusBarHidden(true)
@@ -31,32 +43,64 @@ struct ContentView: View {
         }
     }
 
+    private func gameSurface(in size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
+        ZStack {
+            landscapeGame(in: size)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .padding(.leading, safeAreaInsets.leading)
+                .padding(.trailing, safeAreaInsets.trailing)
+                .padding(.top, safeAreaInsets.top)
+                .padding(.bottom, safeAreaInsets.bottom)
+
+            if let overlay = game.overlay {
+                overlayView(overlay)
+            }
+        }
+    }
+
     private func landscapeGame(in size: CGSize) -> some View {
-        HStack(spacing: 8) {
+        let metrics = LayoutMetrics(size: size)
+
+        return HStack(spacing: 8) {
             leftSidebar
-                .frame(width: sideWidth(for: size))
+                .frame(width: metrics.leftSidebarWidth)
             centerBoard
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             rightSidebar
-                .frame(width: sideWidth(for: size) + 20)
+                .frame(width: metrics.rightSidebarWidth)
         }
-    }
-
-    private func sideWidth(for size: CGSize) -> CGFloat {
-        min(max(size.width * 0.23, 190), 245)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var centerBoard: some View {
-        VStack(spacing: 8) {
-            runStrip
+        ZStack {
+            Color.black
+
             SpriteView(scene: scene)
                 .aspectRatio(CGFloat(GameData.mapWidth) / CGFloat(GameData.mapHeight), contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
-                .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 2))
-            controls
+                .padding(8)
+                .allowsHitTesting(false)
+
+            VStack {
+                runStrip
+                Spacer()
+            }
+            .padding(.top, 8)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    controls
+                }
+            }
+            .padding(14)
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 2))
+        .clipped()
     }
 
     private var leftSidebar: some View {
@@ -69,7 +113,11 @@ struct ContentView: View {
             statRow("Attack", "\(game.player.attack)")
             statRow("Defense", "\(game.player.defense)")
             statRow("Gold", "\(game.player.gold)")
+
+            sectionTitle("Run").padding(.top, 6)
             statRow("Floor", "\(game.dungeon.floor)")
+            statRow("Time", format(game.elapsedSeconds))
+            statRow("Best", bestText)
 
             sectionTitle("Equipment").padding(.top, 6)
             equipmentSlot("Weapon", .weapon, game.player.equipment.weapon)
@@ -87,7 +135,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionTitle("Inventory")
             inventoryGrid
-                .frame(maxHeight: 130)
+                .frame(maxHeight: 150)
             sectionTitle("Log")
             ScrollViewReader { reader in
                 ScrollView {
@@ -112,30 +160,38 @@ struct ContentView: View {
 
     private var runStrip: some View {
         HStack(spacing: 14) {
-            Text("F\(game.dungeon.floor)")
+            Text("Floor \(game.dungeon.floor)")
             if game.dungeon.isBossFloor && !game.dungeon.bossDefeated {
-                Text("BOSS").foregroundStyle(.red).bold()
+                Text("Boss floor").foregroundStyle(.red).bold()
             }
             Text(format(game.elapsedSeconds))
             Text("Best \(bestText)")
         }
-        .font(.custom("Menlo-Bold", size: 14))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color.panel.opacity(0.92))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gold, lineWidth: 2))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .font(.custom("Menlo-Bold", size: 12))
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Color.panel.opacity(0.88))
+        .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 1))
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var controls: some View {
-        HStack(spacing: 8) {
-            Button("◀") { game.move(.left) }.buttonStyle(ControlButtonStyle())
-            Button("▲") { game.move(.up) }.buttonStyle(ControlButtonStyle())
-            Button("•") { game.move(.wait) }.buttonStyle(ControlButtonStyle())
-            Button("▼") { game.move(.down) }.buttonStyle(ControlButtonStyle())
-            Button("▶") { game.move(.right) }.buttonStyle(ControlButtonStyle())
+        Grid(horizontalSpacing: 5, verticalSpacing: 5) {
+            GridRow {
+                Color.clear.frame(width: 52, height: 52)
+                Button("W") { game.move(.up) }.buttonStyle(ControlButtonStyle())
+                Color.clear.frame(width: 52, height: 52)
+            }
+            GridRow {
+                Button("A") { game.move(.left) }.buttonStyle(ControlButtonStyle())
+                Button("S") { game.move(.down) }.buttonStyle(ControlButtonStyle())
+                Button("D") { game.move(.right) }.buttonStyle(ControlButtonStyle())
+            }
         }
-        .padding(.bottom, 2)
+        .padding(6)
+        .background(Color.black.opacity(0.12))
     }
 
     private var hpBar: some View {
@@ -270,9 +326,9 @@ struct ContentView: View {
     }
 
     private var titleOverlay: some View {
-        dialog(maxWidth: 520) {
+        dialog(maxWidth: 430) {
             Text("DUNGEON DELVER")
-                .font(.custom("Menlo-Bold", size: 32))
+                .font(.custom("Menlo-Bold", size: 26))
                 .foregroundStyle(Color.gold)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -281,6 +337,7 @@ struct ContentView: View {
             Text("Explore the depths, slay monsters, and loot treasures. Beware the Merchant: his greed grows with every purchase.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.gray)
+                .font(.custom("Menlo", size: 12))
             HStack {
                 Button("New Run") { game.requestNewRun() }.buttonStyle(RetroButtonStyle())
                 if game.canContinue {
@@ -428,15 +485,31 @@ struct RetroButtonStyle: ButtonStyle {
     }
 }
 
+private struct LayoutMetrics {
+    let leftSidebarWidth: CGFloat
+    let rightSidebarWidth: CGFloat
+
+    init(size: CGSize) {
+        let shortestSide = min(size.width, size.height)
+        if shortestSide < 390 {
+            leftSidebarWidth = 168
+            rightSidebarWidth = 210
+        } else {
+            leftSidebarWidth = min(max(size.width * 0.24, 190), 240)
+            rightSidebarWidth = min(max(size.width * 0.29, 230), 300)
+        }
+    }
+}
+
 struct ControlButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.custom("Menlo-Bold", size: 20))
+            .font(.custom("Menlo-Bold", size: 16))
             .foregroundStyle(.white)
-            .frame(width: 46, height: 38)
-            .background(configuration.isPressed ? Color.highlight.opacity(0.9) : Color.panelBorder.opacity(0.85))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gold, lineWidth: 1.5))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(width: 52, height: 52)
+            .background(configuration.isPressed ? Color.highlight.opacity(0.9) : Color.panelBorder.opacity(0.72))
+            .overlay(Circle().stroke(Color.gold, lineWidth: 1.5))
+            .clipShape(Circle())
     }
 }
 
