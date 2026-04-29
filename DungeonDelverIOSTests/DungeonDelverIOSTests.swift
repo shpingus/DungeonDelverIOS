@@ -7,12 +7,12 @@ final class DungeonDelverIOSTests: XCTestCase {
         player.inventory.append(InventorySlot(id: "ring_vigor", count: 1))
 
         _ = player.equipInventory(at: 1)
-        XCTAssertEqual(player.hp, 50)
-        XCTAssertEqual(player.maxHP, 50)
+        XCTAssertEqual(player.hp, 56)
+        XCTAssertEqual(player.maxHP, 56)
 
         _ = player.unequip(.accessory)
-        XCTAssertEqual(player.hp, 30)
-        XCTAssertEqual(player.maxHP, 30)
+        XCTAssertEqual(player.hp, 36)
+        XCTAssertEqual(player.maxHP, 36)
     }
 
     func testRingOfVigorDamagedAndLowHPUnequip() {
@@ -22,12 +22,12 @@ final class DungeonDelverIOSTests: XCTestCase {
 
         _ = player.equipInventory(at: 1)
         XCTAssertEqual(player.hp, 30)
-        XCTAssertEqual(player.maxHP, 50)
+        XCTAssertEqual(player.maxHP, 56)
 
         player.hp = 5
         _ = player.unequip(.accessory)
         XCTAssertEqual(player.hp, 1)
-        XCTAssertEqual(player.maxHP, 30)
+        XCTAssertEqual(player.maxHP, 36)
     }
 
     func testBossFloorStartsLockedWithBoss() {

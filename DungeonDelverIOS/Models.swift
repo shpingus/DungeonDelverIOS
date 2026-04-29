@@ -11,8 +11,8 @@ struct InventorySlot: Identifiable, Codable, Hashable {
 }
 
 struct Equipment: Codable, Hashable {
-    var weapon: String? = "dagger_rusty"
-    var armor: String? = "robe_cloth"
+    var weapon: String? = nil
+    var armor: String? = nil
     var accessory: String? = nil
 
     subscript(kind: ItemKind) -> String? {
@@ -40,15 +40,15 @@ struct PlayerState: Codable, Hashable {
     var level = 1
     var xp = 0
     var nextXP = 20
-    var baseMaxHP = 30
-    var hp = 30
-    var baseAttack = 5
+    var baseMaxHP = 36
+    var hp = 36
+    var baseAttack = 6
     var baseDefense = 2
     var gold = 0
     var goldCollected = 0
     var monstersDefeated = 0
     var floorsReached = 1
-    var inventory = [InventorySlot(id: "potion_hp", count: 1)]
+    var inventory = [InventorySlot(id: "potion_hp", count: 2)]
     var equipment = Equipment()
 
     var maxHP: Int { baseMaxHP + maxHPBonus(equipment) }

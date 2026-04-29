@@ -1,5 +1,6 @@
 import SpriteKit
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var game = GameViewModel()
@@ -7,31 +8,28 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let isPortraitViewport = proxy.size.height > proxy.size.width
-            let landscapeSize = isPortraitViewport
-                ? CGSize(width: proxy.size.height, height: proxy.size.width)
-                : proxy.size
+            let viewport = proxy.size
+            let isPortraitViewport = viewport.height > viewport.width
+            let surfaceSize = isPortraitViewport
+                ? CGSize(width: viewport.height, height: viewport.width)
+                : viewport
+            let surfaceInsets = isPortraitViewport
+                ? EdgeInsets()
+                : proxy.safeAreaInsets
 
             ZStack {
                 Color.black.ignoresSafeArea()
-
                 if isPortraitViewport {
-                    gameSurface(in: landscapeSize, safeAreaInsets: EdgeInsets())
-                        .frame(width: landscapeSize.width, height: landscapeSize.height)
+                    gameSurface(in: surfaceSize, safeAreaInsets: surfaceInsets)
+                        .frame(width: surfaceSize.width, height: surfaceSize.height)
                         .rotationEffect(.degrees(90))
-                        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                        .position(x: viewport.width / 2, y: viewport.height / 2)
                 } else {
-                    gameSurface(
-                        in: landscapeSize,
-                        safeAreaInsets: EdgeInsets(
-                            top: 0,
-                            leading: proxy.safeAreaInsets.leading,
-                            bottom: 0,
-                            trailing: proxy.safeAreaInsets.trailing
-                        )
-                    )
+                    gameSurface(in: surfaceSize, safeAreaInsets: surfaceInsets)
+                        .frame(width: surfaceSize.width, height: surfaceSize.height)
                 }
             }
+            .frame(width: viewport.width, height: viewport.height)
         }
         .ignoresSafeArea()
         .font(.custom("Menlo", size: 12))
@@ -44,105 +42,111 @@ struct ContentView: View {
     }
 
     private func gameSurface(in size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
-        ZStack {
-            landscapeGame(in: size)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .padding(.leading, safeAreaInsets.leading)
-                .padding(.trailing, safeAreaInsets.trailing)
-                .padding(.top, safeAreaInsets.top)
-                .padding(.bottom, safeAreaInsets.bottom)
+        let metrics = LayoutMetrics(size: size, safeAreaInsets: safeAreaInsets)
+
+        return ZStack {
+            landscapeGame(metrics: metrics)
+                .frame(width: metrics.contentSize.width, height: metrics.contentSize.height)
+                .padding(.leading, metrics.leadingInset)
+                .padding(.trailing, metrics.trailingInset)
+                .padding(.top, metrics.topInset)
+                .padding(.bottom, metrics.bottomInset)
 
             if let overlay = game.overlay {
-                overlayView(overlay)
+                overlayView(overlay, metrics: metrics)
             }
         }
+        .frame(width: size.width, height: size.height)
     }
 
-    private func landscapeGame(in size: CGSize) -> some View {
-        let metrics = LayoutMetrics(size: size)
-
-        return HStack(spacing: 8) {
-            leftSidebar
+    private func landscapeGame(metrics: LayoutMetrics) -> some View {
+        HStack(spacing: metrics.columnGap) {
+            leftSidebar(metrics: metrics)
                 .frame(width: metrics.leftSidebarWidth)
-            centerBoard
+            centerBoard(metrics: metrics)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            rightSidebar
+            rightSidebar(metrics: metrics)
                 .frame(width: metrics.rightSidebarWidth)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var centerBoard: some View {
+    private func centerBoard(metrics: LayoutMetrics) -> some View {
         ZStack {
             Color.black
 
             SpriteView(scene: scene)
-                .aspectRatio(CGFloat(GameData.mapWidth) / CGFloat(GameData.mapHeight), contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(8)
+                .padding(metrics.centerMapPadding)
                 .allowsHitTesting(false)
 
             VStack {
-                runStrip
+                runStrip(metrics: metrics)
                 Spacer()
             }
-            .padding(.top, 8)
+            .padding(.top, metrics.centerInset)
 
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    controls
+                    controls(metrics: metrics)
                 }
             }
-            .padding(14)
+            .padding(metrics.centerInset)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 2))
+        .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: metrics.borderWidth))
         .clipped()
     }
 
-    private var leftSidebar: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            sectionTitle("Hero Stats")
-            statRow("Level", "\(game.player.level)")
-            hpBar
-            statRow("HP", "\(game.player.hp)/\(game.player.maxHP)")
-            xpBar
-            statRow("Attack", "\(game.player.attack)")
-            statRow("Defense", "\(game.player.defense)")
-            statRow("Gold", "\(game.player.gold)")
+    private func leftSidebar(metrics: LayoutMetrics) -> some View {
+        VStack(alignment: .leading, spacing: metrics.sidebarSpacing) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: metrics.sidebarSpacing) {
+                    sectionTitle("Hero Stats", fontSize: metrics.titleFontSize)
+                    statRow("Level", "\(game.player.level)", fontSize: metrics.bodyFontSize)
+                    xpBar(metrics: metrics)
+                    statRow("HP", "\(game.player.hp)/\(game.player.maxHP)", fontSize: metrics.bodyFontSize)
+                    hpBar(metrics: metrics)
+                    statRow("Attack", "\(game.player.attack)", fontSize: metrics.bodyFontSize)
+                    statRow("Defense", "\(game.player.defense)", fontSize: metrics.bodyFontSize)
+                    statRow("Gold", "\(game.player.gold)", fontSize: metrics.bodyFontSize)
 
-            sectionTitle("Run").padding(.top, 6)
-            statRow("Floor", "\(game.dungeon.floor)")
-            statRow("Time", format(game.elapsedSeconds))
-            statRow("Best", bestText)
+                    sectionTitle("Run", fontSize: metrics.titleFontSize)
+                        .padding(.top, metrics.sectionTopPadding)
+                    statRow("Floor", "\(game.dungeon.floor)", fontSize: metrics.bodyFontSize)
+                    statRow("Time", format(game.elapsedSeconds), fontSize: metrics.bodyFontSize)
+                    statRow("Best", bestText, fontSize: metrics.bodyFontSize)
 
-            sectionTitle("Equipment").padding(.top, 6)
-            equipmentSlot("Weapon", .weapon, game.player.equipment.weapon)
-            equipmentSlot("Armor", .armor, game.player.equipment.armor)
-            equipmentSlot("Accessory", .accessory, game.player.equipment.accessory)
+                    sectionTitle("Equipment", fontSize: metrics.titleFontSize)
+                        .padding(.top, metrics.sectionTopPadding)
+                    equipmentSlot("Weapon", .weapon, game.player.equipment.weapon, metrics: metrics)
+                    equipmentSlot("Armor", .armor, game.player.equipment.armor, metrics: metrics)
+                    equipmentSlot("Accessory", .accessory, game.player.equipment.accessory, metrics: metrics)
+                }
+            }
 
             Spacer(minLength: 0)
             Button("Help") { game.overlay = .help }
-                .buttonStyle(RetroButtonStyle(compact: true))
+                .buttonStyle(RetroButtonStyle(compact: true, fontSize: metrics.buttonFontSize))
         }
-        .panelStyle()
+        .panelStyle(metrics: metrics)
     }
 
-    private var rightSidebar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Inventory")
-            inventoryGrid
-                .frame(maxHeight: 150)
-            sectionTitle("Log")
+    private func rightSidebar(metrics: LayoutMetrics) -> some View {
+        VStack(alignment: .leading, spacing: metrics.sidebarSpacing) {
+            sectionTitle("Inventory", fontSize: metrics.titleFontSize)
+            inventoryGrid(metrics: metrics)
+                .frame(height: metrics.inventoryGridHeight)
+
+            sectionTitle("Log", fontSize: metrics.titleFontSize)
             ScrollViewReader { reader in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: metrics.logSpacing) {
                         ForEach(Array(game.messages.enumerated()), id: \.offset) { index, message in
                             Text(message)
-                                .font(.custom("Menlo", size: 10))
+                                .font(.custom("Menlo", size: metrics.logFontSize))
                                 .foregroundStyle(index == game.messages.count - 1 ? Color.white : Color.gray)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .id(index)
@@ -155,11 +159,11 @@ struct ContentView: View {
             }
             Spacer(minLength: 0)
         }
-        .panelStyle()
+        .panelStyle(metrics: metrics)
     }
 
-    private var runStrip: some View {
-        HStack(spacing: 14) {
+    private func runStrip(metrics: LayoutMetrics) -> some View {
+        HStack(spacing: metrics.runStripSpacing) {
             Text("Floor \(game.dungeon.floor)")
             if game.dungeon.isBossFloor && !game.dungeon.bossDefeated {
                 Text("Boss floor").foregroundStyle(.red).bold()
@@ -167,40 +171,54 @@ struct ContentView: View {
             Text(format(game.elapsedSeconds))
             Text("Best \(bestText)")
         }
-        .font(.custom("Menlo-Bold", size: 12))
+        .font(.custom("Menlo-Bold", size: metrics.runStripFontSize))
         .lineLimit(1)
-        .minimumScaleFactor(0.72)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+        .minimumScaleFactor(0.65)
+        .padding(.horizontal, metrics.runStripHorizontalPadding)
+        .padding(.vertical, metrics.runStripVerticalPadding)
         .background(Color.panel.opacity(0.88))
         .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 1))
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var controls: some View {
-        Grid(horizontalSpacing: 5, verticalSpacing: 5) {
+    private func controls(metrics: LayoutMetrics) -> some View {
+        Grid(horizontalSpacing: metrics.controlSpacing, verticalSpacing: metrics.controlSpacing) {
             GridRow {
-                Color.clear.frame(width: 52, height: 52)
-                Button("W") { game.move(.up) }.buttonStyle(ControlButtonStyle())
-                Color.clear.frame(width: 52, height: 52)
+                Color.clear.frame(width: metrics.controlSize, height: metrics.controlSize)
+                movementButton(systemName: "arrow.up", direction: .up, metrics: metrics)
+                Color.clear.frame(width: metrics.controlSize, height: metrics.controlSize)
             }
             GridRow {
-                Button("A") { game.move(.left) }.buttonStyle(ControlButtonStyle())
-                Button("S") { game.move(.down) }.buttonStyle(ControlButtonStyle())
-                Button("D") { game.move(.right) }.buttonStyle(ControlButtonStyle())
+                movementButton(systemName: "arrow.left", direction: .left, metrics: metrics)
+                movementButton(systemName: "arrow.down", direction: .down, metrics: metrics)
+                movementButton(systemName: "arrow.right", direction: .right, metrics: metrics)
             }
         }
-        .padding(6)
-        .background(Color.black.opacity(0.12))
+        .padding(metrics.controlPadding)
+        .background(Color.black.opacity(0.46))
+        .overlay(Rectangle().stroke(Color.panelBorder.opacity(0.75), lineWidth: 1))
     }
 
-    private var hpBar: some View {
-        bar(value: Double(game.player.hp), max: Double(game.player.maxHP), color: hpColor)
+    private func movementButton(systemName: String, direction: Direction, metrics: LayoutMetrics) -> some View {
+        Button {
+            game.move(direction)
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: max(18, metrics.controlSize * 0.42), weight: .bold))
+                .frame(width: metrics.controlSize, height: metrics.controlSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(ControlButtonStyle(size: metrics.controlSize))
+        .contentShape(Rectangle())
+        .accessibilityLabel(direction.accessibilityLabel)
     }
 
-    private var xpBar: some View {
-        bar(value: Double(game.player.xp), max: Double(game.player.nextXP), color: .blue)
-            .frame(height: 7)
+    private func hpBar(metrics: LayoutMetrics) -> some View {
+        bar(value: Double(game.player.hp), max: Double(game.player.maxHP), color: hpColor, height: metrics.barHeight)
+    }
+
+    private func xpBar(metrics: LayoutMetrics) -> some View {
+        bar(value: Double(game.player.xp), max: Double(game.player.nextXP), color: .red, height: metrics.smallBarHeight)
     }
 
     private var hpColor: Color {
@@ -210,7 +228,7 @@ struct ContentView: View {
         return .green
     }
 
-    private func bar(value: Double, max: Double, color: Color) -> some View {
+    private func bar(value: Double, max: Double, color: Color, height: CGFloat) -> some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Rectangle().fill(Color.black.opacity(0.75))
@@ -220,18 +238,19 @@ struct ContentView: View {
             }
             .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 1))
         }
-        .frame(height: 11)
+        .frame(height: height)
     }
 
-    private var inventoryGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 4), spacing: 5) {
+    private func inventoryGrid(metrics: LayoutMetrics) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.fixed(metrics.inventoryCellSize), spacing: metrics.inventoryGridSpacing), count: 4), spacing: metrics.inventoryGridSpacing) {
             ForEach(0..<16, id: \.self) { index in
-                inventoryCell(index)
+                inventoryCell(index, size: metrics.inventoryCellSize)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private func inventoryCell(_ index: Int) -> some View {
+    private func inventoryCell(_ index: Int, size: CGFloat) -> some View {
         Button {
             game.useInventory(at: index)
         } label: {
@@ -240,17 +259,19 @@ struct ContentView: View {
                     .fill(Color.slot)
                     .overlay(Rectangle().stroke(inventoryBorder(index), lineWidth: 1.5))
                 if game.player.inventory.indices.contains(index), let item = GameData.items[game.player.inventory[index].id] {
-                    Text(itemSymbol(item))
-                        .font(.custom("Menlo-Bold", size: 18))
-                        .foregroundStyle(item.rarity.color)
+                    Image(uiImage: GameIcon.image(named: item.icon, size: min(28, size * 0.68)))
+                        .resizable()
+                        .interpolation(.none)
+                        .scaledToFit()
+                        .frame(width: size * 0.72, height: size * 0.72)
                     if game.player.inventory[index].count > 1 {
                         Text("\(game.player.inventory[index].count)")
-                            .font(.custom("Menlo-Bold", size: 9))
+                            .font(.custom("Menlo-Bold", size: min(9, size * 0.24)))
                             .padding(2)
                     }
                 }
             }
-            .aspectRatio(1, contentMode: .fit)
+            .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
         .disabled(!game.player.inventory.indices.contains(index))
@@ -262,48 +283,44 @@ struct ContentView: View {
         return item.rarity.color
     }
 
-    private func itemSymbol(_ item: ItemDef) -> String {
-        switch item.kind {
-        case .consumable: return item.teleports ? "?" : "!"
-        case .weapon: return "/"
-        case .armor: return "]"
-        case .accessory: return "="
-        }
-    }
-
-    private func sectionTitle(_ title: String) -> some View {
+    private func sectionTitle(_ title: String, fontSize: CGFloat) -> some View {
         Text(title.uppercased())
-            .font(.custom("Menlo-Bold", size: 11))
+            .font(.custom("Menlo-Bold", size: fontSize))
             .foregroundStyle(Color.gold)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 3)
             .overlay(alignment: .bottom) { Rectangle().fill(Color.panelBorder).frame(height: 1) }
     }
 
-    private func statRow(_ label: String, _ value: String) -> some View {
+    private func statRow(_ label: String, _ value: String, fontSize: CGFloat) -> some View {
         HStack {
             Text("\(label):")
                 .foregroundStyle(.gray)
             Spacer()
             Text(value)
         }
-        .font(.custom("Menlo", size: 12))
+        .font(.custom("Menlo", size: fontSize))
+        .lineLimit(1)
+        .minimumScaleFactor(0.68)
     }
 
-    private func equipmentSlot(_ label: String, _ kind: ItemKind, _ itemID: String?) -> some View {
+    private func equipmentSlot(_ label: String, _ kind: ItemKind, _ itemID: String?, metrics: LayoutMetrics) -> some View {
         Button {
             game.unequip(kind)
         } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.custom("Menlo", size: 9)).foregroundStyle(.gray)
+                Text(label)
+                    .font(.custom("Menlo", size: metrics.captionFontSize))
+                    .foregroundStyle(.gray)
                 Text(itemID.flatMap { GameData.items[$0]?.name } ?? "None")
-                    .font(.custom("Menlo-Bold", size: 11))
+                    .font(.custom("Menlo-Bold", size: metrics.bodyFontSize))
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .foregroundStyle(itemID.flatMap { GameData.items[$0]?.rarity.color } ?? .gray)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(7)
+            .frame(height: metrics.equipmentSlotHeight, alignment: .center)
+            .padding(.horizontal, metrics.equipmentHorizontalPadding)
             .background(Color.slot)
             .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 1))
         }
@@ -311,58 +328,73 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func overlayView(_ overlay: Overlay) -> some View {
+    private func overlayView(_ overlay: Overlay, metrics: LayoutMetrics) -> some View {
         ZStack {
             Color.black.opacity(0.86).ignoresSafeArea()
             switch overlay {
-            case .title: titleOverlay
-            case .confirmNewRun: confirmOverlay
-            case .shop: shopOverlay
-            case .levelUp: levelOverlay
-            case .death: deathOverlay
-            case .help: helpOverlay
+            case .title: titleOverlay(metrics: metrics)
+            case .confirmNewRun: confirmOverlay(metrics: metrics)
+            case .shop: shopOverlay(metrics: metrics)
+            case .levelUp: levelOverlay(metrics: metrics)
+            case .death: deathOverlay(metrics: metrics)
+            case .help: helpOverlay(metrics: metrics)
             }
         }
+        .frame(width: metrics.size.width, height: metrics.size.height)
     }
 
-    private var titleOverlay: some View {
-        dialog(maxWidth: 430) {
+    private func titleOverlay(metrics: LayoutMetrics) -> some View {
+        dialog(maxWidth: 520, metrics: metrics) {
             Text("DUNGEON DELVER")
-                .font(.custom("Menlo-Bold", size: 26))
+                .font(.custom("Menlo-Bold", size: metrics.titleOverlayFontSize))
                 .foregroundStyle(Color.gold)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text("MERCHANT'S CURSE")
+                .font(.custom("Menlo-Bold", size: metrics.dialogBodyFontSize))
                 .foregroundStyle(Color.panelBorder)
             Text("Explore the depths, slay monsters, and loot treasures. Beware the Merchant: his greed grows with every purchase.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.gray)
-                .font(.custom("Menlo", size: 12))
-            HStack {
-                Button("New Run") { game.requestNewRun() }.buttonStyle(RetroButtonStyle())
+                .font(.custom("Menlo", size: metrics.dialogBodyFontSize))
+                .lineLimit(3)
+                .minimumScaleFactor(0.75)
+            HStack(spacing: metrics.dialogButtonSpacing) {
+                Button("New Run") { game.requestNewRun() }
+                    .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
                 if game.canContinue {
-                    Button("Continue") { game.continueRun() }.buttonStyle(RetroButtonStyle())
+                    Button("Continue") { game.continueRun() }
+                        .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
                 }
             }
         }
     }
 
-    private var confirmOverlay: some View {
-        dialog {
-            Text("Replace Saved Run?").font(.headline)
+    private func confirmOverlay(metrics: LayoutMetrics) -> some View {
+        dialog(metrics: metrics) {
+            Text("Replace Saved Run?")
+                .font(.custom("Menlo-Bold", size: metrics.dialogHeaderFontSize))
+                .foregroundStyle(Color.gold)
             Text("Starting a new run replaces the active save. Your best run remains.")
                 .multilineTextAlignment(.center)
-            HStack {
-                Button("Start New Run") { game.startNewRun(clearSave: true) }.buttonStyle(RetroButtonStyle())
-                Button("Cancel") { game.overlay = .title }.buttonStyle(RetroButtonStyle())
+                .font(.custom("Menlo", size: metrics.dialogBodyFontSize))
+            HStack(spacing: metrics.dialogButtonSpacing) {
+                Button("Start New Run") { game.startNewRun(clearSave: true) }
+                    .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
+                Button("Cancel") { game.overlay = .title }
+                    .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
             }
         }
     }
 
-    private var shopOverlay: some View {
-        dialog(maxWidth: 560) {
-            Text("The Greed-Witch").font(.headline).foregroundStyle(Color.gold)
-            Text("\"Take a look, hero... if you can afford it.\"").italic()
+    private func shopOverlay(metrics: LayoutMetrics) -> some View {
+        dialog(maxWidth: 640, metrics: metrics) {
+            Text("The Greed-Witch")
+                .font(.custom("Menlo-Bold", size: metrics.dialogHeaderFontSize))
+                .foregroundStyle(Color.gold)
+            Text("\"Take a look, hero... if you can afford it.\"")
+                .font(.custom("Menlo", size: metrics.dialogBodyFontSize))
+                .italic()
             Picker("Tab", selection: Binding(get: { game.shopTab }, set: { game.setShopTab($0) })) {
                 Text("Buy").tag(ShopTab.buy)
                 Text("Sell").tag(ShopTab.sell)
@@ -379,13 +411,15 @@ struct ContentView: View {
                     }
                 }
             }
-            .frame(maxHeight: 180)
-            HStack {
+            .frame(maxHeight: metrics.shopListMaxHeight)
+            HStack(spacing: metrics.dialogButtonSpacing) {
                 Text("Gold \(game.player.gold)")
                 Spacer()
                 Text("Curse \(game.shopGreed, specifier: "%.2f")x")
-                Button("Exit") { game.closeShop() }.buttonStyle(RetroButtonStyle(compact: true))
+                Button("Exit") { game.closeShop() }
+                    .buttonStyle(RetroButtonStyle(compact: true, fontSize: metrics.dialogButtonFontSize))
             }
+            .font(.custom("Menlo", size: metrics.dialogBodyFontSize))
         }
     }
 
@@ -400,8 +434,11 @@ struct ContentView: View {
             }
         } label: {
             HStack {
-                Text(item.map(itemSymbol) ?? "?")
-                    .foregroundStyle(item?.rarity.color ?? .white)
+                Image(uiImage: GameIcon.image(named: item?.icon ?? "unknown", size: 22))
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
                 Text(item?.name ?? id)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -412,20 +449,25 @@ struct ContentView: View {
         .buttonStyle(RetroButtonStyle(compact: true))
     }
 
-    private var levelOverlay: some View {
-        dialog {
-            Text("Level Up!").font(.headline)
-            HStack {
+    private func levelOverlay(metrics: LayoutMetrics) -> some View {
+        dialog(metrics: metrics) {
+            Text("Level Up!")
+                .font(.custom("Menlo-Bold", size: metrics.dialogHeaderFontSize))
+                .foregroundStyle(Color.gold)
+            HStack(spacing: metrics.dialogButtonSpacing) {
                 ForEach(LevelStat.allCases) { stat in
-                    Button(stat.title) { game.applyLevelUp(stat) }.buttonStyle(RetroButtonStyle())
+                    Button(stat.title) { game.applyLevelUp(stat) }
+                        .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
                 }
             }
         }
     }
 
-    private var deathOverlay: some View {
-        dialog {
-            Text("You Perished").font(.headline).foregroundStyle(.red)
+    private func deathOverlay(metrics: LayoutMetrics) -> some View {
+        dialog(metrics: metrics) {
+            Text("You Perished")
+                .font(.custom("Menlo-Bold", size: metrics.dialogHeaderFontSize))
+                .foregroundStyle(.red)
             if let summary = game.deathSummary {
                 Text("Floor Reached: \(summary.floorReached)")
                 Text("Elapsed: \(format(summary.elapsedSeconds))")
@@ -434,29 +476,34 @@ struct ContentView: View {
             }
             Text(game.deathWasNewBest ? "New Best Run!" : "Best Run: \(bestText)")
                 .foregroundStyle(Color.gold)
-            Button("New Run") { game.requestNewRun() }.buttonStyle(RetroButtonStyle())
+            Button("New Run") { game.requestNewRun() }
+                .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
         }
     }
 
-    private var helpOverlay: some View {
-        dialog {
-            Text("Controls").font(.headline)
+    private func helpOverlay(metrics: LayoutMetrics) -> some View {
+        dialog(metrics: metrics) {
+            Text("Controls")
+                .font(.custom("Menlo-Bold", size: metrics.dialogHeaderFontSize))
+                .foregroundStyle(Color.gold)
             Text("Use the directional buttons to move and attack.")
             Text("Tap inventory slots to use or equip items. Tap equipped gear to unequip.")
-            Text("Map: @ hero, letters monsters, ! potion/bomb, / weapon, ] armor, = accessory, > stairs, $ shop, + shrine.")
+            Text("Map uses sprite icons for the hero, monsters, loot, stairs, shop, and shrines.")
                 .multilineTextAlignment(.center)
-            Button("Close") { game.closeHelp() }.buttonStyle(RetroButtonStyle())
+            Button("Close") { game.closeHelp() }
+                .buttonStyle(RetroButtonStyle(fontSize: metrics.dialogButtonFontSize))
         }
     }
 
-    private func dialog<Content: View>(maxWidth: CGFloat = 430, @ViewBuilder content: () -> Content) -> some View {
+    private func dialog<Content: View>(maxWidth: CGFloat = 430, metrics: LayoutMetrics, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 12, content: content)
-            .font(.custom("Menlo", size: 13))
-            .padding(18)
-            .frame(maxWidth: maxWidth)
+            .font(.custom("Menlo", size: metrics.dialogBodyFontSize))
+            .padding(metrics.dialogPadding)
+            .frame(maxWidth: min(maxWidth, metrics.dialogMaxWidth))
             .background(Color.panel.opacity(0.97))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gold, lineWidth: 2))
-            .padding()
+            .overlay(Rectangle().stroke(Color.gold, lineWidth: metrics.borderWidth))
+            .padding(.horizontal, metrics.dialogHorizontalMargin)
+            .padding(.vertical, metrics.dialogVerticalMargin)
     }
 
     private var bestText: String {
@@ -472,54 +519,173 @@ struct ContentView: View {
 
 struct RetroButtonStyle: ButtonStyle {
     var compact = false
+    var fontSize: CGFloat? = nil
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.custom("Menlo-Bold", size: compact ? 11 : 13))
+            .font(.custom("Menlo-Bold", size: fontSize ?? (compact ? 11 : 13)))
             .foregroundStyle(.white)
             .padding(.horizontal, compact ? 9 : 12)
             .padding(.vertical, compact ? 7 : 9)
             .background(configuration.isPressed ? Color.highlight : Color.panelBorder)
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.gold, lineWidth: 1.5))
-            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .overlay(Rectangle().stroke(Color.gold, lineWidth: 1.5))
     }
 }
 
 private struct LayoutMetrics {
+    let size: CGSize
+    let contentSize: CGSize
+    let leadingInset: CGFloat
+    let trailingInset: CGFloat
+    let topInset: CGFloat
+    let bottomInset: CGFloat
+    let columnGap: CGFloat
     let leftSidebarWidth: CGFloat
     let rightSidebarWidth: CGFloat
+    let borderWidth: CGFloat
+    let panelPadding: CGFloat
+    let sidebarSpacing: CGFloat
+    let sectionTopPadding: CGFloat
+    let titleFontSize: CGFloat
+    let bodyFontSize: CGFloat
+    let captionFontSize: CGFloat
+    let buttonFontSize: CGFloat
+    let barHeight: CGFloat
+    let smallBarHeight: CGFloat
+    let equipmentSlotHeight: CGFloat
+    let equipmentHorizontalPadding: CGFloat
+    let inventoryGridSpacing: CGFloat
+    let inventoryCellSize: CGFloat
+    let inventoryGridHeight: CGFloat
+    let logSpacing: CGFloat
+    let logFontSize: CGFloat
+    let centerInset: CGFloat
+    let centerMapPadding: CGFloat
+    let runStripSpacing: CGFloat
+    let runStripFontSize: CGFloat
+    let runStripHorizontalPadding: CGFloat
+    let runStripVerticalPadding: CGFloat
+    let controlSize: CGFloat
+    let controlSpacing: CGFloat
+    let controlPadding: CGFloat
+    let dialogMaxWidth: CGFloat
+    let dialogHorizontalMargin: CGFloat
+    let dialogVerticalMargin: CGFloat
+    let dialogPadding: CGFloat
+    let dialogHeaderFontSize: CGFloat
+    let dialogBodyFontSize: CGFloat
+    let dialogButtonFontSize: CGFloat
+    let dialogButtonSpacing: CGFloat
+    let titleOverlayFontSize: CGFloat
+    let shopListMaxHeight: CGFloat
 
-    init(size: CGSize) {
-        let shortestSide = min(size.width, size.height)
-        if shortestSide < 390 {
-            leftSidebarWidth = 168
-            rightSidebarWidth = 210
-        } else {
-            leftSidebarWidth = min(max(size.width * 0.24, 190), 240)
-            rightSidebarWidth = min(max(size.width * 0.29, 230), 300)
+    init(size: CGSize, safeAreaInsets: EdgeInsets) {
+        self.size = size
+
+        let horizontalCurveInset: CGFloat = size.width > size.height ? 22 : 14
+        let verticalCurveInset: CGFloat = size.width > size.height ? 8 : 14
+        leadingInset = max(safeAreaInsets.leading, horizontalCurveInset)
+        trailingInset = max(safeAreaInsets.trailing, horizontalCurveInset)
+        topInset = max(safeAreaInsets.top, verticalCurveInset)
+        bottomInset = max(safeAreaInsets.bottom, verticalCurveInset)
+
+        let contentWidth = max(1, size.width - leadingInset - trailingInset)
+        let contentHeight = max(1, size.height - topInset - bottomInset)
+        contentSize = CGSize(width: contentWidth, height: contentHeight)
+
+        let compact = contentHeight < 410 || contentWidth < 820
+        columnGap = compact ? 2 : 4
+        borderWidth = compact ? 1.5 : 2
+        panelPadding = compact ? 7 : 10
+        sidebarSpacing = compact ? 4 : 7
+        sectionTopPadding = compact ? 2 : 5
+        titleFontSize = compact ? 10 : 12
+        bodyFontSize = compact ? 10 : 12
+        captionFontSize = compact ? 8 : 9
+        buttonFontSize = compact ? 10 : 11
+        barHeight = compact ? 8 : 11
+        smallBarHeight = compact ? 6 : 8
+        equipmentSlotHeight = compact ? 29 : 38
+        equipmentHorizontalPadding = compact ? 6 : 8
+        inventoryGridSpacing = compact ? 4 : 5
+        logSpacing = compact ? 4 : 5
+        logFontSize = compact ? 9 : 10
+        centerInset = compact ? 7 : 12
+        centerMapPadding = 0
+        runStripSpacing = compact ? 9 : 14
+        runStripFontSize = compact ? 10 : 12
+        runStripHorizontalPadding = compact ? 9 : 12
+        runStripVerticalPadding = compact ? 5 : 7
+        controlSize = compact ? 40 : 52
+        controlSpacing = compact ? 4 : 5
+        controlPadding = compact ? 4 : 6
+
+        var leftWidth = compact
+            ? min(max(contentWidth * 0.20, 132), 164)
+            : min(max(contentWidth * 0.18, 190), 260)
+        var rightWidth = compact
+            ? min(max(contentWidth * 0.24, 162), 198)
+            : min(max(contentWidth * 0.23, 230), 320)
+        let minimumCenterWidth = compact ? max(360, contentHeight * 1.15) : max(480, contentHeight * 1.25)
+        let sideBudget = max(0, contentWidth - (columnGap * 2) - minimumCenterWidth)
+        if leftWidth + rightWidth > sideBudget {
+            let scale = sideBudget / max(1, leftWidth + rightWidth)
+            leftWidth = max(compact ? 118 : 150, floor(leftWidth * scale))
+            rightWidth = max(compact ? 138 : 170, floor(rightWidth * scale))
         }
+
+        leftSidebarWidth = leftWidth
+        rightSidebarWidth = rightWidth
+
+        let gridAvailableWidth = max(1, rightWidth - (panelPadding * 2) - (inventoryGridSpacing * 3))
+        inventoryCellSize = floor(gridAvailableWidth / 4)
+        inventoryGridHeight = (inventoryCellSize * 4) + (inventoryGridSpacing * 3)
+
+        dialogHorizontalMargin = leadingInset + trailingInset + 10
+        dialogVerticalMargin = topInset + bottomInset + 8
+        dialogMaxWidth = max(280, contentWidth * (compact ? 0.74 : 0.62))
+        dialogPadding = compact ? 14 : 18
+        dialogHeaderFontSize = compact ? 17 : 20
+        dialogBodyFontSize = compact ? 11 : 13
+        dialogButtonFontSize = compact ? 11 : 13
+        dialogButtonSpacing = compact ? 8 : 12
+        titleOverlayFontSize = compact ? 24 : 28
+        shopListMaxHeight = max(110, min(190, contentHeight * 0.42))
     }
 }
 
 struct ControlButtonStyle: ButtonStyle {
+    var size: CGFloat
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.custom("Menlo-Bold", size: 16))
             .foregroundStyle(.white)
-            .frame(width: 52, height: 52)
+            .frame(width: size, height: size)
+            .contentShape(Rectangle())
             .background(configuration.isPressed ? Color.highlight.opacity(0.9) : Color.panelBorder.opacity(0.72))
-            .overlay(Circle().stroke(Color.gold, lineWidth: 1.5))
-            .clipShape(Circle())
+            .overlay(Rectangle().stroke(Color.gold, lineWidth: 1.5))
+    }
+}
+
+private extension Direction {
+    var accessibilityLabel: String {
+        switch self {
+        case .up: return "Move up"
+        case .down: return "Move down"
+        case .left: return "Move left"
+        case .right: return "Move right"
+        case .wait: return "Wait"
+        }
     }
 }
 
 private extension View {
-    func panelStyle() -> some View {
+    func panelStyle(metrics: LayoutMetrics) -> some View {
         self
-            .padding(9)
+            .padding(metrics.panelPadding)
             .frame(maxHeight: .infinity)
             .background(Color.panel.opacity(0.96))
-            .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: 2))
+            .overlay(Rectangle().stroke(Color.panelBorder, lineWidth: metrics.borderWidth))
     }
 }
 

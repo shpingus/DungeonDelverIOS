@@ -31,6 +31,7 @@ struct DungeonState: Codable, Hashable {
         placeShop(in: rooms)
         placeShrine(in: rooms)
         populate(rooms: rooms)
+        placeEarlyGear(in: rooms)
         if isBossFloor {
             placeBoss(in: rooms.last!)
         }
@@ -85,24 +86,30 @@ struct DungeonState: Codable, Hashable {
     }
 
     mutating func populate(rooms: [Room]) {
+        let depth = max(0, floor - 1)
         for (index, room) in rooms.enumerated() {
             guard index != 0 else { continue }
             if isBossFloor && index == rooms.count - 1 { continue }
+            let spawnChance = min(0.90, 0.52 + Double(depth) * 0.04)
+            guard Double.random(in: 0...1) <= spawnChance else { continue }
 
-            let count = Int.random(in: 1...(2 + floor / 3))
+            let count = Int.random(in: 1...max(1, 1 + floor / 4))
             for _ in 0..<count {
                 let point = Point(x: Int.random(in: room.x..<(room.x + room.width)), y: Int.random(in: room.y..<(room.y + room.height)))
                 guard isFloorOpen(point) else { continue }
-                let maxIndex = min(GameData.monsters.count - 1, Int(Double(floor) / 2.0))
+                let maxIndex = min(GameData.monsters.count - 1, Int(Double(depth) / 1.7))
                 let def = GameData.monsters[Int.random(in: 0...maxIndex)]
-                let hp = def.hp + floor * 2
-                monsters.append(MonsterState(name: def.name, icon: def.icon, position: point, hp: hp, maxHP: hp, attack: def.attack, defense: def.defense, xp: def.xp, behavior: def.behavior, isBoss: false))
+                let hp = def.hp + depth * (2 + maxIndex / 2)
+                let attack = def.attack + depth / 2
+                let defense = def.defense + depth / 4
+                let xp = def.xp + depth * 3
+                monsters.append(MonsterState(name: def.name, icon: def.icon, position: point, hp: hp, maxHP: hp, attack: attack, defense: defense, xp: xp, behavior: def.behavior, isBoss: false))
             }
 
-            if Double.random(in: 0...1) > 0.6 {
+            if Double.random(in: 0...1) > 0.62 {
                 let point = Point(x: Int.random(in: room.x..<(room.x + room.width)), y: Int.random(in: room.y..<(room.y + room.height)))
                 guard isFloorOpen(point) else { continue }
-                let pool = GameData.items.values.filter { $0.price <= floor * 100 || $0.price == 0 }
+                let pool = GameData.items.values.filter { $0.price <= max(35, floor * 85) }
                 if let drop = pool.randomElement() {
                     items.append(GroundItem(position: point, itemID: drop.id))
                 }
@@ -110,11 +117,23 @@ struct DungeonState: Codable, Hashable {
         }
     }
 
+    mutating func placeEarlyGear(in rooms: [Room]) {
+        guard floor <= 2, let room = rooms.dropFirst().randomElement() else { return }
+        let basics = floor == 1 ? ["dagger_rusty", "robe_cloth"] : ["potion_hp", "dagger_rusty", "robe_cloth"]
+        guard let itemID = basics.randomElement() else { return }
+        let point = Point(x: room.center.x, y: room.center.y)
+        guard isFloorOpen(point) else { return }
+        items.append(GroundItem(position: point, itemID: itemID))
+    }
+
     mutating func placeBoss(in room: Room) {
         let template = GameData.bosses[min(GameData.bosses.count - 1, floor / 10)]
         let point = Point(x: room.center.x, y: max(room.y, room.center.y - 1))
-        let hp = template.hp + floor * 8
-        monsters.append(MonsterState(name: template.name, icon: template.icon, position: point, hp: hp, maxHP: hp, attack: template.attack + Int(Double(floor) * 1.5), defense: template.defense + floor / 3, xp: template.xp + floor * 20, behavior: template.behavior, isBoss: true))
+        let depth = max(0, floor - 1)
+        let hp = template.hp + depth * 7
+        let attack = template.attack + depth
+        let defense = template.defense + depth / 3
+        monsters.append(MonsterState(name: template.name, icon: template.icon, position: point, hp: hp, maxHP: hp, attack: attack, defense: defense, xp: template.xp + depth * 20, behavior: template.behavior, isBoss: true))
     }
 
     func tile(at point: Point) -> Tile? {

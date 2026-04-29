@@ -248,6 +248,7 @@ final class GameViewModel: ObservableObject {
         shopGreed = max(1.0, shopGreed - 0.2)
         shopStock = []
         dungeon.generate(player: &player)
+        player.hp = min(player.maxHP, player.hp + max(6, player.maxHP / 5))
         revealAroundPlayer()
     }
 

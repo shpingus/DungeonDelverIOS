@@ -21,13 +21,10 @@ struct LandscapeOrientationRequester: ViewModifier {
     private func requestLandscapeOrientation() {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
 
-        if #available(iOS 16.0, *) {
-            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { error in
-                debugPrint("Failed to request landscape orientation: \(error.localizedDescription)")
-            }
+        windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { error in
+            debugPrint("Failed to request landscape orientation: \(error.localizedDescription)")
         }
 
-        UIDevice.current.setValue(UIInterfaceOrientation.landscapeRight.rawValue, forKey: "orientation")
         windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
     }
 }

@@ -12,6 +12,7 @@
 		20CF97A5E8B80B30E2336A35 /* DungeonScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67D12EF8C3CC2ADB080F4DFF /* DungeonScene.swift */; };
 		32E75FDC327F7B132DBBFE5A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03C2B141BFFDCFF0A741C3D /* ContentView.swift */; };
 		3B0AF800809805C47B2CCE28 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E98DA47D9E770402D062F57C /* Assets.xcassets */; };
+		50FEAC7E1F937D574F312DA5 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0C8F004E4EC00A0C2D02AD89 /* LaunchScreen.storyboard */; };
 		55CBCFAA262CAE9982B38A3D /* RunStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FC3349378156A6C8AC8EC8 /* RunStorage.swift */; };
 		5848C93802786FA5C5FB2EA5 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABDAB727588B5450C69AAC3 /* Models.swift */; };
 		5883DBB93FDC19B7CC2889A4 /* DungeonState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 694776CAF8229B7CFF34E7CE /* DungeonState.swift */; };
@@ -32,6 +33,7 @@
 
 /* Begin PBXFileReference section */
 		061E0E46B77608F7622E0677 /* DungeonDelverIOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DungeonDelverIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0C8F004E4EC00A0C2D02AD89 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		1D1B0E08B12CD50B2B754B09 /* OrientationLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationLock.swift; sourceTree = "<group>"; };
 		3144B42C9E9BAEAC494760F8 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 		453046C78C8AF37D65482D57 /* DungeonDelverIOSTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DungeonDelverIOSTests.swift; sourceTree = "<group>"; };
@@ -59,6 +61,7 @@
 				EE6B8D64A929764A2229C1D4 /* GameData.swift */,
 				3144B42C9E9BAEAC494760F8 /* GameViewModel.swift */,
 				F456A48B289A51831149847C /* Info.plist */,
+				0C8F004E4EC00A0C2D02AD89 /* LaunchScreen.storyboard */,
 				4ABDAB727588B5450C69AAC3 /* Models.swift */,
 				1D1B0E08B12CD50B2B754B09 /* OrientationLock.swift */,
 				C0FC3349378156A6C8AC8EC8 /* RunStorage.swift */,
@@ -168,6 +171,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3B0AF800809805C47B2CCE28 /* Assets.xcassets in Resources */,
+				50FEAC7E1F937D574F312DA5 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
